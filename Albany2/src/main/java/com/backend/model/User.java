@@ -1,79 +1,82 @@
-package com.backend.model;
+package com.albany.restapi.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import java.time.LocalDateTime;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
-@Entity
-@Table(name = "users")
+import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
+
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+@Entity
+@Table(name = "users")
+public class User implements UserDetails {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-    
-    @Column(nullable = false, unique = true)
+    private Integer userId;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
+
+    @Column(unique = true)
     private String email;
 
     private String password;
-    
-    @Column(name = "first_name", nullable = false)
+
     private String firstName;
-    
-    @Column(name = "last_name", nullable = false)
+
     private String lastName;
-    
-    @Column(name = "phone_number")
+
     private String phoneNumber;
-    
-    @Column(name = "street")
-    private String street;
-    
-    @Column(name = "city")
-    private String city;
-    
-    @Column(name = "state")
-    private String state;
-    
-    @Column(name = "postal_code")
-    private String postalCode;
-   
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
-    
-    @Enumerated(EnumType.STRING)
-    @Column(name = "membership_type", nullable = false)
-    private MembershipType membershipType = MembershipType.STANDARD; // Default is STANDARD
 
-    @Column(name = "membership_start_date")
-    private LocalDateTime membershipStartDate;
+    private boolean isActive;
 
-    @Column(name = "membership_end_date")
-    private LocalDateTime membershipEndDate;
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
 
-    // Create a new enum for membership types
-    public enum MembershipType {
-        STANDARD, PREMIUM
-    }
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role = Role.CUSTOMER; // Default role is CUSTOMER
-    
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = LocalDateTime.now();
-        }
-        if (membershipType == null) {
-            membershipType = MembershipType.STANDARD;
-        }
-        if (role == null) {
-            role = Role.CUSTOMER;
-        }
+        createdAt = LocalDateTime.now();
     }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return isActive;
+    }
+
 }

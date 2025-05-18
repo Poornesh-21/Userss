@@ -1,75 +1,115 @@
-package com.backend.model;
+package com.albany.restapi.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 
-@Entity
-@Table(name = "service_requests")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Entity
+@Table(name = "ServiceRequests")
 public class ServiceRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long serviceRequestId;
+    @Column(name = "request_id")
+    private Integer requestId;
+
+    @Column(name = "service_type")
+    private String serviceType;
+
+    @Column(name = "delivery_date")
+    private LocalDate deliveryDate;
+
+    @Column(name = "additional_description")
+    private String additionalDescription;
+
+    @Column(name = "service_description")
+    private String serviceDescription;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status")
+    private Status status;
 
     @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @JoinColumn(name = "vehicle_id")
+    private Vehicle vehicle;
 
-    @Column(nullable = false)
-    private String vehicleType;
-    
-    @Column(nullable = false)
-    private String vehicleBrand;
+    @ManyToOne
+    @JoinColumn(name = "admin_id")
+    private AdminProfile admin;
 
-    @Column(nullable = false)
+    @ManyToOne
+    @JoinColumn(name = "service_advisor_id")
+    private ServiceAdvisorProfile serviceAdvisor;
+
+    // Vehicle-specific fields to match database schema
+    @Column(name = "vehicle_model", nullable = false)
     private String vehicleModel;
+
+    @Column(name = "vehicle_registration", nullable = false)
+    private String vehicleRegistration;
+
+    @Column(name = "vehicle_type")
+    private String vehicleType;
 
     @Column(name = "vehicle_year")
     private Integer vehicleYear;
 
-    @Column(nullable = false)
-    private String vehicleRegistration;
+    // Add user_id column
+    @Column(name = "user_id", nullable = false)
+    private Integer userId;
 
-    @Column(columnDefinition = "TEXT")
-    private String serviceDescription;
-
-    @ElementCollection(targetClass = ServiceType.class)
-    @Enumerated(EnumType.STRING)
-    @CollectionTable(name = "requested_service_types", joinColumns = @JoinColumn(name = "service_request_id"))
-    @Column(name = "service_type")
-    private List<ServiceType> requestedServices;
-
-    @Column(name = "preferred_date", nullable = false)
-    private LocalDateTime preferredDate;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ServiceRequestStatus status = ServiceRequestStatus.RECEIVED;
-
-    @Column(name = "created_at")
-    private LocalDateTime createdAt = LocalDateTime.now();
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt = LocalDateTime.now();
-    
-    @Column(name = "admin_id")
-    private Long adminId;
-    
-    @Column(name = "service_advisor_id")
-    private Long serviceAdvisorId;
+    private LocalDateTime updatedAt;
 
-    public enum ServiceRequestStatus {
-        RECEIVED,
-        DIAGNOSIS,
-        REPAIR,
-        COMPLETED
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+
+        // Populate vehicle-specific fields from associated vehicle if not set
+        if (vehicle != null) {
+            if (this.vehicleModel == null) {
+                this.vehicleModel = vehicle.getModel();
+            }
+            if (this.vehicleRegistration == null) {
+                this.vehicleRegistration = vehicle.getRegistrationNumber();
+            }
+            if (this.vehicleType == null) {
+                this.vehicleType = vehicle.getCategory() != null ? vehicle.getCategory().name() : null;
+            }
+            if (this.vehicleYear == null) {
+                this.vehicleYear = vehicle.getYear();
+            }
+
+            // Set user_id from vehicle's customer's user
+            if (vehicle.getCustomer() != null && vehicle.getCustomer().getUser() != null) {
+                this.userId = vehicle.getCustomer().getUser().getUserId();
+            }
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    // Enum for status
+    public enum Status {
+        Received,
+        Diagnosis,
+        Repair,
+        Completed
     }
 }
